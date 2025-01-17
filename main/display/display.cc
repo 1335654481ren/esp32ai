@@ -65,6 +65,22 @@ void Display::SetStatus(const std::string &status) {
     lv_label_set_text(status_label_, status.c_str());
 }
 
+void Display::SetTTS(const std::string &tts) {
+    if (tts_label_ == nullptr) {
+        return;
+    }
+    DisplayLockGuard lock(this);
+    lv_label_set_text(tts_label_, tts.c_str());
+}
+
+void Display::SetSTT(const std::string &stt) {
+    if (stt_label_ == nullptr) {
+        return;
+    }
+    DisplayLockGuard lock(this);
+    lv_label_set_text(stt_label_, stt.c_str());
+}
+
 void Display::ShowNotification(const std::string &notification, int duration_ms) {
     if (notification_label_ == nullptr) {
         return;

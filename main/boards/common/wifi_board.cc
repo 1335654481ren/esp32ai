@@ -16,6 +16,7 @@
 
 #include <wifi_station.h>
 #include <wifi_configuration_ap.h>
+#include <wifi_smartconfig.h>
 
 static const char *TAG = "WifiBoard";
 
@@ -33,6 +34,27 @@ static std::string rssi_to_string(int rssi) {
     }
 }
 
+WifiBoard::WifiBoard() {
+    // Get ssid and password from NVS
+    nvs_handle_t nvs_handle;
+    auto ret = nvs_open("wifi", NVS_READWRITE, &nvs_handle);
+    if (ret == ESP_OK) {
+        std::string key = std::string("wifi_cfg_type");
+        uint32_t temp = 0;
+        esp_err_t err = nvs_get_u32(nvs_handle, key.c_str(), &temp);
+        if (err == ESP_ERR_NVS_NOT_FOUND) {
+            temp = (uint32_t)wifi_cfg_type;
+            ESP_LOGI(TAG, "Set default wifi_cfg_type = %d", wifi_cfg_type);
+            ESP_ERROR_CHECK(nvs_set_u32(nvs_handle, key.c_str(), temp));
+        } else if (err == ESP_OK){
+            wifi_cfg_type = (WIFI_CONFIG_TYPE)temp;
+        }
+        // Commit the changes
+        ESP_ERROR_CHECK(nvs_commit(nvs_handle));
+        nvs_close(nvs_handle);
+    }
+}
+
 void WifiBoard::StartNetwork() {
     auto& application = Application::GetInstance();
     auto display = Board::GetInstance().GetDisplay();
@@ -45,21 +67,30 @@ void WifiBoard::StartNetwork() {
     if (!wifi_station.IsConnected()) {
         builtin_led->SetBlue();
         builtin_led->Blink(1000, 500);
-        auto& wifi_ap = WifiConfigurationAp::GetInstance();
-        wifi_ap.SetSsidPrefix("Xiaozhi");
-        wifi_ap.Start();
-        
-        // 播报配置 WiFi 的提示
-        application.Alert("Info", "Configuring WiFi");
-
-        // 显示 WiFi 配置 AP 的 SSID 和 Web 服务器 URL
-        std::string hint = "请在手机上连接热点 ";
-        hint += wifi_ap.GetSsid();
-        hint += "，然后打开浏览器访问 ";
-        hint += wifi_ap.GetWebServerUrl();
-
-        display->SetStatus(hint);
-        
+        std::string hint;
+        if(wifi_cfg_type == SOFT_AP_WEB) {
+            auto& wifi_ap = WifiConfigurationAp::GetInstance();
+            wifi_ap.SetSsidPrefix("Xiaozhi");
+            // 播报配置 WiFi 的提示
+            application.Alert("Info", "Configuring WiFi");
+            // 显示 WiFi 配置 AP 的 SSID 和 Web 服务器 URL
+            hint = "请在手机上连接热点 ";
+            hint += wifi_ap.GetSsid();
+            hint += "，然后打开浏览器访问 ";
+            hint += wifi_ap.GetWebServerUrl();
+            ESP_LOGI(TAG,"%s",hint.c_str());
+            display->SetStatus(hint);
+            wifi_ap.Start();
+        } else {
+            auto& wifi_ap = WifiSmartConfiguration::GetInstance();
+            // 播报配置 WiFi 的提示
+            application.Alert("Info", "Configuring WiFi");
+            // 显示 WiFi 配置 AP 的 SSID 和 Web 服务器 URL
+            hint = "请关注微信小程序:(AI智能硬件)配网（“。”）";
+            ESP_LOGI(TAG,"%s",hint.c_str());
+            display->SetStatus(hint);
+            wifi_ap.Start();
+        }
         // Wait forever until reset after configuration
         while (true) {
             int free_sram = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);

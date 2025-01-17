@@ -1,3 +1,5 @@
+#include <nvs.h>
+#include <nvs_flash.h>
 #include "wifi_board.h"
 #include "audio_codecs/box_audio_codec.h"
 #include "display/st7789_display.h"
@@ -241,16 +243,28 @@ private:
 
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
-            auto& app = Application::GetInstance();
-            if (app.GetChatState() == kChatStateUnknown && !WifiStation::GetInstance().IsConnected()) {
-                ResetWifiConfiguration();
-            }
+            ESP_LOGI(TAG, "Botton OnClick");
+            // auto& app = Application::GetInstance();
+            // if (app.GetChatState() == kChatStateUnknown && !WifiStation::GetInstance().IsConnected()) {
+            //     ResetWifiConfiguration();
+            // }
+            PrintNvsConfig();
         });
         boot_button_.OnPressDown([this]() {
-            Application::GetInstance().StartListening();
+            ESP_LOGI(TAG, "Botton OnPressDown");
+            // Application::GetInstance().StartListening();
         });
         boot_button_.OnPressUp([this]() {
-            Application::GetInstance().StopListening();
+            ESP_LOGI(TAG, "Botton OnPressUp");
+            // Application::GetInstance().StopListening();
+        });
+        boot_button_.OnLongPress([this]() {
+            ESP_LOGI(TAG, "Botton OnLongPress");
+            ClearBoardConfigInfo();
+        });
+        boot_button_.OnDoubleClick([this]() {
+            ESP_LOGI(TAG, "Botton OnDoubleClick");
+            PrintNvsConfig();
         });
     }
 
@@ -293,6 +307,67 @@ private:
                                     DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
 
         return ESP_OK;
+    }
+
+    void ClearBoardConfigInfo() {
+        nvs_handle_t nvs_handle;
+        auto ret = nvs_open("wifi", NVS_READWRITE, &nvs_handle);
+        if (ret == ESP_OK) {
+            nvs_erase_all(nvs_handle);
+            // Commit the changes
+            ESP_ERROR_CHECK(nvs_commit(nvs_handle));
+            nvs_close(nvs_handle);
+            ESP_LOGE(TAG, "Erasing NVS flash Done");
+        }
+        vTaskDelay(pdMS_TO_TICKS(30000));
+    }
+
+    void PrintNvsConfig() {
+        nvs_opaque_iterator_t *it = NULL;
+        auto err = nvs_entry_find("nvs", "wifi", NVS_TYPE_ANY, &it);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "No entries found in namespace 'wifi'. Error: %s", esp_err_to_name(err));
+            return;
+        }
+        while (it != NULL) {
+            nvs_entry_info_t info;
+            nvs_entry_info(it, &info);
+            ESP_LOGI(TAG, "Key: %s, Type: %d", info.key, info.type);
+            // 根据类型读取数据
+            nvs_handle_t handle;
+            auto err = nvs_open("wifi", NVS_READONLY, &handle);
+            if (err == ESP_OK) {
+                if (info.type == NVS_TYPE_I32) {
+                    int32_t value;
+                    nvs_get_i32(handle, info.key, &value);
+                    ESP_LOGI(TAG, "Key: %s, Value (i32): %ld", info.key, value);
+                }else if (info.type == NVS_TYPE_U8) {
+                    uint8_t value;
+                    nvs_get_u8(handle, info.key, &value);
+                    ESP_LOGI(TAG, "Key: %s, Value (u8): %d", info.key, value);
+                } else if (info.type == NVS_TYPE_STR) {
+                    size_t required_size = 0;
+                    nvs_get_str(handle, info.key, NULL, &required_size);
+                    char *value = (char *)malloc(required_size);
+                    nvs_get_str(handle, info.key, value, &required_size);
+                    ESP_LOGI(TAG, "Key: %s, Value (str): %s", info.key, value);
+                    free(value);
+                } else if (info.type == NVS_TYPE_BLOB) {
+                    size_t required_size = 0;
+                    nvs_get_blob(handle, info.key, NULL, &required_size);
+                    uint8_t *blob = (uint8_t *)malloc(required_size);
+                    nvs_get_blob(handle, info.key, blob, &required_size);
+                    ESP_LOGI(TAG, "Key: %s, Value (blob): [binary data, size: %d]", info.key, required_size);
+                    free(blob);
+                }
+                nvs_close(handle);
+            } else {
+                ESP_LOGE(TAG, "Failed to open namespace for reading: %s", esp_err_to_name(err));
+            }
+            // 移动到下一个键
+            err = nvs_entry_next(&it);
+        }
+        ESP_LOGI(TAG, "Finished traversing Wi-Fi namespace");
     }
 
     void InitializeSCcard() {

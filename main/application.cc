@@ -349,6 +349,7 @@ void Application::Start() {
                 auto text = cJSON_GetObjectItem(root, "text");
                 if (text != NULL) {
                     ESP_LOGI(TAG, "<< %s", text->valuestring);
+                    display->SetTTS(text->valuestring);
                     display->SetChatMessage("assistant", text->valuestring);
                 }
             }
@@ -356,6 +357,7 @@ void Application::Start() {
             auto text = cJSON_GetObjectItem(root, "text");
             if (text != NULL) {
                 ESP_LOGI(TAG, ">> %s", text->valuestring);
+                display->SetSTT(text->valuestring);
                 display->SetChatMessage("user", text->valuestring);
             }
         } else if (strcmp(type->valuestring, "llm") == 0) {

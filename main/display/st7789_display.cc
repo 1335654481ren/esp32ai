@@ -162,7 +162,7 @@ St7789Display::St7789Display(i2c_master_bus_handle_t i2c_bus, esp_lcd_panel_io_h
     SetupUI();
     // mp3ui_ = new Mp3Ui(content_);
     // mp3ui_->music_ui();
-    lv_demo_widgets(content_);
+    //lv_demo_widgets(content_);
 }
 
 St7789Display::~St7789Display() {
@@ -303,7 +303,20 @@ void St7789Display::SetupUI() {
     lv_obj_set_style_text_font(emotion_label_, &font_awesome_30_1, 0);
     lv_label_set_text(emotion_label_, FONT_AWESOME_AI_CHIP);
     lv_obj_center(emotion_label_);
-    
+    /* tts */
+    tts_label_ = lv_label_create(content_);
+    lv_obj_set_flex_grow(tts_label_, 1);
+    lv_label_set_text(tts_label_, "TTS result");
+    lv_label_set_long_mode(tts_label_, LV_LABEL_LONG_DOT);
+    lv_obj_align_to(tts_label_, emotion_label_, LV_ALIGN_OUT_TOP_RIGHT, 100, 0);
+    lv_obj_set_style_text_align(tts_label_, LV_TEXT_ALIGN_CENTER, 0);
+    /* stt */
+    stt_label_ = lv_label_create(content_);
+    lv_obj_set_flex_grow(stt_label_, 1);
+    lv_label_set_text(stt_label_, "STT result");
+    lv_label_set_long_mode(stt_label_, LV_LABEL_LONG_DOT);
+    lv_obj_align_to(stt_label_, emotion_label_, LV_ALIGN_OUT_BOTTOM_RIGHT, 100, 0);
+    lv_obj_set_style_text_align(stt_label_, LV_TEXT_ALIGN_CENTER, 0);
     /* Status bar */
     lv_obj_set_flex_flow(status_bar_, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_all(status_bar_, 0, 0);
